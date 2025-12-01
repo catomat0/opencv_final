@@ -11,11 +11,12 @@ from image_utils import numpy_bgr_to_qimage, numpy_gray_to_qimage, numpy_bgra_to
 
 
 class SelectableLabel(QLabel):
+
     """
     마우스로 드래그해서 영역(사각형)을 선택할 수 있는 라벨
     - selection_rect: 라벨 좌표계 기준 선택된 QRect
     - 이미지가 축소되어 들어오기 때문에
-      실제 이미지 좌표로 매핑하기 위한 scale/offset/info 저장
+      실제 이미지 좌표로 매핑하기 위한 변수
     """
     def __init__(self, text="", parent=None):
         super().__init__(text, parent)
@@ -70,15 +71,14 @@ class SelectableLabel(QLabel):
 
 
 class ImageEditorDialog(QDialog):
+
     """
     이미지 편집 윈도우
     - 이미지 파일 불러오기
-    - Canny 외곽선 추출
-    - 외곽선 색상 선택 (R/G/B 슬라이더)
-    - 드래그로 선택한 영역만 잘라서
-      "메인 캔버스로 보내기" 시 QImage로 반환
+    - canny 외곽선
+    - 외곽선 색상 선택 - 슬라이더 사용
+    - 드래그로 선택한 영역만 잘라서 메인 캔버스로 보내기
     """
-
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -92,7 +92,7 @@ class ImageEditorDialog(QDialog):
 
         main_layout = QVBoxLayout()
 
-        # 이미지 표시 라벨 (드래그 선택 가능)
+        # 이미지 표시 라벨 - 드래그
         self.image_label = SelectableLabel("이미지를 불러오세요.")
         self.image_label.setAlignment(Qt.AlignCenter)
         self.image_label.setStyleSheet(
@@ -153,13 +153,11 @@ class ImageEditorDialog(QDialog):
         self.slider_g.valueChanged.connect(self.on_color_changed)
         self.slider_b.valueChanged.connect(self.on_color_changed)
 
-    # ---------- 이미지 표시 관련 ----------
+    # 이미지 표시 관련
 
-    def _set_image_to_label(self, qimg):
+    def set_image_to_label(self, qimg):
         """
         QImage를 QPixmap으로 변환, 라벨 크기에 맞게 출력
-        + 나중에 드래그 영역을 원본 이미지 좌표로 매핑하기 위한
-          scale / offset 값을 라벨에 저장
         """
         label_w = self.image_label.width()
         label_h = self.image_label.height()
@@ -193,7 +191,7 @@ class ImageEditorDialog(QDialog):
         self.image_label.selection_rect = None
         self.image_label.update()
 
-    # ---------- 이미지 선택/로드 ----------
+    # 이미지 선택
 
     def on_load_image(self):
         """
@@ -219,7 +217,7 @@ class ImageEditorDialog(QDialog):
         self.result_qimage = None
 
         qimg = numpy_bgr_to_qimage(img)
-        self._set_image_to_label(qimg)
+        self.set_image_to_label(qimg)
 
         self.btn_extract.setEnabled(True)
         self.btn_send.setEnabled(False)
@@ -227,12 +225,11 @@ class ImageEditorDialog(QDialog):
         for s in (self.slider_r, self.slider_g, self.slider_b):
             s.setEnabled(False)
 
-    # ---------- Canny 외곽선 추출 ----------
+    # canny 외곽선 추출
 
     def on_extract_edges(self):
         """
-        canny 외곽선 추출 후 결과를 그레이스케일 기반으로 표시
-        + 색상 슬라이더 활성화
+        canny 외곽선 추출 후 결과를 그레이스케일 기반으로 표시 / 색상 슬라이더 활성화
         """
         if self.original_img is None:
             QMessageBox.information(self, "알림", "먼저 이미지를 불러오세요.")
@@ -274,7 +271,7 @@ class ImageEditorDialog(QDialog):
 
         self.colored_edge_rgba = bgra
         qimg = numpy_bgra_to_qimage(bgra)
-        self._set_image_to_label(qimg)
+        self.set_image_to_label(qimg)
 
         # 메인으로 보낼 기본 결과(선택 안 했을 때 대비)
         self.result_qimage = qimg
@@ -287,9 +284,9 @@ class ImageEditorDialog(QDialog):
             return
         self.apply_color_to_edges()
 
-    # ---------- 선택 영역 → 잘라내기 ----------
+    # 선택 영역 잘라내기
 
-    def _crop_edges_by_selection(self):
+    def crop_edges_by_selection(self):
         """
         드래그로 선택한 영역을 self.edges 기준으로 잘라서 반환
         - 선택 영역이 없으면 전체 edges 사용
@@ -326,25 +323,25 @@ class ImageEditorDialog(QDialog):
         y2_img = max(0, min(h, y2_img))
 
         if x2_img <= x1_img or y2_img <= y1_img:
-            # 영역이 너무 작거나 잘못된 경우 → 전체 사용
+            # 영역이 너무 작거나 잘못된 경우는 그냥 전체를 사용
             return self.edges.copy()
 
         cropped = self.edges[y1_img:y2_img, x1_img:x2_img]
         return cropped
 
-    # ---------- 메인 캔버스로 보내기 ----------
+    # 메인 캔버스로 보내기
 
     def on_send_to_main(self):
         """
         드래그로 선택한 영역만 잘라서 (없으면 전체)
         색상 슬라이더 기준의 R,G,B로 칠한
-        투명 배경 RGBA QImage를 만들어 result_qimage에 담고 accept()
+        투명 배경 RGBA QImage를 만들어 result_qimage에 담아 accept()
         """
         if self.edges is None:
             QMessageBox.information(self, "알림", "먼저 외곽선을 추출해주세요.")
             return
 
-        cropped_edges = self._crop_edges_by_selection()
+        cropped_edges = self.crop_edges_by_selection()
         if cropped_edges is None:
             QMessageBox.warning(self, "오류", "잘라낼 수 있는 영역이 없습니다.")
             return

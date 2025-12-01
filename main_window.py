@@ -10,75 +10,81 @@ from image_editor_dialog import ImageEditorDialog
 
 class DraggableCanvasLabel(QLabel):
     """
-    메인 캔버스 미리보기용 라벨
-    - 마우스 이벤트를 받아서 MainWindow에 넘겨줌
-    - 실제 드래그 로직(어느 이미지를 움직일지, 좌표 변환 등)은 MainWindow가 처리
+    메인 캔버스 미리보기
+    - 마우스 이벤트를 받아서 main window 에 넘겨줌
+    - 실제 드래그 로직은 main window가 처리
     """
     def __init__(self, parent=None):
+
         super().__init__(parent)
         self.main_window = None
         self.setMouseTracking(True)
 
     def set_main_window(self, main_window):
+
         self.main_window = main_window
 
     def mousePressEvent(self, event):
+
         if self.main_window is not None:
             self.main_window.on_canvas_mouse_press(event)
 
     def mouseMoveEvent(self, event):
+
         if self.main_window is not None:
             self.main_window.on_canvas_mouse_move(event)
 
     def mouseReleaseEvent(self, event):
+
         if self.main_window is not None:
             self.main_window.on_canvas_mouse_release(event)
 
 
 class MainWindow(QMainWindow):
+
     """
     메인 화면:
-    - 배경화면(스타트 캔버스) 사이즈 선택 (6개 프리셋)
-    - 이미지 추가: ImageEditorDialog 열어서 실루엣 QImage 받아오기
-    - 받은 실루엣들을 캔버스에 타일 방식으로 배치 (콜라주)
-    - 배경색 슬라이더로 배경색 조절
-    - 마우스로 실루엣 이미지를 드래그하여 위치 조정
-    - 최종 이미지를 파일로 저장
+    - 배경화면 사이즈 선택
+    - 이미지 QImage 받아오기
+    - 받은 외곽선 이미지들을 캔버스에 배치
+    - 배경 색 슬라이더로 배경 조절
+    - 마우스로 이미지를 드래그해서 위치 수정
+    - 최종 결과물을 이미지 파일로 저장
     """
-
     def __init__(self):
+
         super().__init__()
 
-        self.setWindowTitle("실루엣 콜라주 배경화면 생성기")
+        self.setWindowTitle("외곽선 콜라주 배경화면 생성")
         self.resize(1000, 700)
 
-        # 캔버스 상태
+        # 캔버스
         self.canvas_width = 0
         self.canvas_height = 0
-        self.current_canvas_qimage = None  # 실제 해상도 캔버스
+        self.current_canvas_qimage = None  # 실제로 비춰지는 해상도 캔버스
         self.image_placement_locked = False
 
-        # 배치 상태
+        # 배치
         # placed_images: (QImage, x, y, w, h)
         self.placed_images = []
         self.next_x = 0
         self.next_y = 0
         self.current_row_height = 0
 
-        # 미리보기(라벨)에서 캔버스 좌표로 변환하기 위한 정보
+        # 미리보기에서 캔버스 좌표로 변환하기 위한 정보
         self.preview_scale = 1.0
         self.preview_offset_x = 0
         self.preview_offset_y = 0
 
-        # 드래그 중 선택된 이미지 정보
+        # 드래그 중 선택된 이미지의 정보
         self.dragging_index = None
         self.drag_offset_in_image = QPoint(0, 0)  # 이미지 내부에서의 클릭 위치
 
-        # ---------- UI 구성 ---------- #
+        # UI
         central_widget = QWidget()
         main_layout = QVBoxLayout()
 
-        # ---------- 상단: 배경화면 사이즈 선택 ---------- #
+        # 상단 - 배경화면 사이즈 선택
         size_layout = QHBoxLayout()
         size_layout.addWidget(QLabel("배경화면 사이즈 선택:"))
 
@@ -100,21 +106,21 @@ class MainWindow(QMainWindow):
 
         main_layout.addLayout(size_layout)
 
-        # ---------- 중앙: 캔버스 미리보기 라벨 (드래그 가능) ---------- #
+        # 메인 캔버스
         self.canvas_label = DraggableCanvasLabel()
         self.canvas_label.set_main_window(self)
-        self.canvas_label.setText("먼저 배경화면 사이즈를 선택하세요.")
+        self.canvas_label.setText("배경화면 사이즈를 선택하세요!")
         self.canvas_label.setAlignment(Qt.AlignCenter)
         self.canvas_label.setStyleSheet(
             "background-color: #222; color: #fff; font-size: 16px;"
         )
         main_layout.addWidget(self.canvas_label, stretch=1)
 
-        # ---------- 하단 버튼: 이미지 추가 / 완료 / 저장 ---------- #
+        # 하단 버튼 - 이미지 추가 / 완료 / 저장
         bottom_layout = QHBoxLayout()
-        self.btn_add_image = QPushButton("이미지 추가")
-        self.btn_finish_or_bg = QPushButton("이미지 추가 완료 (배경색 설정 모드로)")
-        self.btn_save = QPushButton("이미지 저장")
+        self.btn_add_image = QPushButton("이미지 추가하기")
+        self.btn_finish_or_bg = QPushButton("이미지 추가 완료 -> 배경색 설정 모드로")
+        self.btn_save = QPushButton("이미지 저장하기")
 
         self.btn_add_image.setEnabled(False)
         self.btn_finish_or_bg.setEnabled(False)
@@ -126,7 +132,7 @@ class MainWindow(QMainWindow):
 
         main_layout.addLayout(bottom_layout)
 
-        # ---------- 배경색 조절 슬라이더 ---------- #
+        # 배경색 조절 슬라이더
         bg_slider_layout = QHBoxLayout()
         self.bg_slider_r = QSlider(Qt.Horizontal)
         self.bg_slider_g = QSlider(Qt.Horizontal)
@@ -149,7 +155,6 @@ class MainWindow(QMainWindow):
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
 
-        # ---------- 시그널 연결 ---------- #
         self.btn_add_image.clicked.connect(self.on_add_image)
         self.btn_finish_or_bg.clicked.connect(self.on_finish_or_bg_clicked)
         self.btn_save.clicked.connect(self.on_save)
@@ -158,7 +163,7 @@ class MainWindow(QMainWindow):
         self.bg_slider_g.valueChanged.connect(self.on_bg_color_changed)
         self.bg_slider_b.valueChanged.connect(self.on_bg_color_changed)
 
-    # ================= 캔버스 관련 ================= #
+    # 캔버스
 
     def set_canvas_size(self, w, h):
         """
@@ -180,7 +185,7 @@ class MainWindow(QMainWindow):
 
     def reset_canvas_state(self):
         """
-        캔버스를 초기 상태로 되돌림
+        캔버스를 초기 상태로 리셋
         """
         self.placed_images.clear()
         self.next_x = 0
@@ -194,7 +199,7 @@ class MainWindow(QMainWindow):
         self.preview_offset_y = 0
         self.dragging_index = None
 
-        self.btn_finish_or_bg.setText("이미지 추가 완료 (배경색 설정 모드로)")
+        self.btn_finish_or_bg.setText("이미지 추가 완료 -> 배경색 설정 모드로")
         self.btn_add_image.setEnabled(False)
 
         for s in (self.bg_slider_r, self.bg_slider_g, self.bg_slider_b):
@@ -203,8 +208,7 @@ class MainWindow(QMainWindow):
 
     def update_canvas_preview(self):
         """
-        현재 배경색 + 배치된 실루엣 이미지를 합성한 캔버스를 생성하고
-        중앙 라벨에 축소해서 미리보기로 보여줌
+        현재 배경색 + 배치된 외곽선 이미지를 올린 캔버스를 생성하고 중앙에서 축소해서 미리보기로 보여줌
         + 축소 비율 / 오프셋을 저장해서 마우스 좌표를 캔버스 좌표로 변환할 수 있게 함
         """
         if self.canvas_width <= 0 or self.canvas_height <= 0:
@@ -230,11 +234,12 @@ class MainWindow(QMainWindow):
                 Qt.SmoothTransformation
             )
             painter.drawPixmap(x, y, pix)
+
         painter.end()
 
         self.current_canvas_qimage = canvas_qimage
 
-        # 미리보기용 스케일 계산
+        # 미리보기용 사이즈 계산
         label_w = self.canvas_label.width()
         label_h = self.canvas_label.height()
         if label_w <= 0 or label_h <= 0:
@@ -256,12 +261,12 @@ class MainWindow(QMainWindow):
             Qt.KeepAspectRatio,
             Qt.SmoothTransformation
         )
-        # 배경은 그대로 두고 offset 위치에만 그림을 그릴 수는 없으니,
-        # 여기서는 그냥 scaled pixmap만 설정한다.
+
+        # 배경은 그대로 두고 offset 위치에만 그림을 그릴 수는 없으니, 여기서는 그냥 scaled pixmap만 설정
         self.canvas_label.setPixmap(display_pix)
         self.canvas_label.setAlignment(Qt.AlignCenter)
 
-    # ================= 좌표 변환 유틸 ================= #
+    # 좌표 변환
 
     def label_pos_to_canvas_pos(self, pos: QPoint):
         """
@@ -272,14 +277,11 @@ class MainWindow(QMainWindow):
         y = (pos.y() - self.preview_offset_y) / self.preview_scale
         return int(x), int(y)
 
-    # ================= 이미지 추가 및 배치 ================= #
+    # 이미지 추가
 
     def on_add_image(self):
         """
-        '이미지 추가' 버튼 클릭 시:
-        - ImageEditorDialog를 띄워서
-          이미지 불러오기 + 외곽선 추출 + 색상 선택 + 영역 선택까지 한 뒤,
-        - 완료된 실루엣 QImage(RGBA)를 메인 캔버스에 배치
+        외곽선 이미지 QImage(RGBA)를 메인 캔버스에 배치
         """
         if self.image_placement_locked:
             QMessageBox.information(
@@ -294,7 +296,9 @@ class MainWindow(QMainWindow):
             return
 
         dialog = ImageEditorDialog(self)
+
         from PyQt5.QtWidgets import QDialog  # 여기서 import 해줘도 됨
+
         if dialog.exec_() == QDialog.Accepted:
             result_qimage = dialog.result_qimage
             if result_qimage is None:
@@ -304,7 +308,7 @@ class MainWindow(QMainWindow):
 
     def place_image_on_canvas(self, qimage_rgba: QImage):
         """
-        실루엣 QImage를 캔버스에 타일링 방식으로 배치
+        QImage를 캔버스에 배치
         """
         img_w = qimage_rgba.width()
         img_h = qimage_rgba.height()
@@ -337,7 +341,7 @@ class MainWindow(QMainWindow):
         self.next_x += img_w
         self.current_row_height = max(self.current_row_height, img_h)
 
-    # ================= 이미지 추가 완료 / 배경색 모드 ================= #
+    # 이미지 추가 완료 / 배경색 모드
 
     def on_finish_or_bg_clicked(self):
         """
@@ -363,12 +367,12 @@ class MainWindow(QMainWindow):
 
     def on_bg_color_changed(self, value):
         """
-        배경색 슬라이더 값 변경 시 캔버스 갱신
+        배경색 슬라이더 값 변경 - 캔버스 갱신
         """
         if self.canvas_width > 0 and self.canvas_height > 0:
             self.update_canvas_preview()
 
-    # ================= 마우스 드래그로 이미지 이동 ================= #
+    # 마우스 드래그로 이미지 이동
 
     def find_image_at_canvas_pos(self, x, y):
         """
@@ -406,7 +410,7 @@ class MainWindow(QMainWindow):
 
     def on_canvas_mouse_move(self, event):
         """
-        드래그 중: 선택된 이미지가 있으면 마우스 위치에 따라 이미지 이동
+        드래그 중 - 선택된 이미지가 있으면 마우스 위치에 따라 이미지 이동
         """
         if self.dragging_index is None:
             return
@@ -434,7 +438,7 @@ class MainWindow(QMainWindow):
         if event.button() == Qt.LeftButton:
             self.dragging_index = None
 
-    # ================= 최종 저장 ================= #
+    # 최종 결과 저장
 
     def on_save(self):
         """
